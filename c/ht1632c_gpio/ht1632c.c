@@ -39,6 +39,12 @@
 
 // Other
 #define DEBUG 0
+
+// Pins
+#define WR RPI2_GPIO_P1_23
+#define CS RPI2_GPIO_P1_24
+#define DATA RPI2_GPIO_P1_19
+
 void print_bits(size_t const size, void const * const ptr);
 void ht1632c_send_command(uint8_t command);
 void ht1632c_init();
@@ -59,25 +65,6 @@ int main(int argc, char **argv)
       printf("bcm2835_init failed. Are you running as root??\n");
       return 1;
     }
-    if (!bcm2835_spi_begin())
-    {
-      printf("bcm2835_spi_begin failed. Are you running as root??\n");
-      return 1;
-    }
-    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
-    bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_65536); // The default
-    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
-    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
-
-    ht1632c_init();
-
-    // for (int i = 0; i < 96; i++) {
-    //   ht1632c_write(i, 0x00);
-    // }
-    ht1632c_write(0x00, 0x01);
-
-    bcm2835_spi_end();
     bcm2835_close();
     
     return 0;
@@ -109,7 +96,7 @@ void ht1632c_send_command(uint8_t command)
 void ht1632c_write(uint8_t addr, uint8_t data)
 {
   data = data & 0x0F;
-  addr = addr & 0x7F;
+  addr = addr & 0x7F;   // force first nibble low
   uint16_t buf = (HT1632C_WRITE_MODE << 13) | (addr << 6);
   buf = buf | (data << 2);
 
