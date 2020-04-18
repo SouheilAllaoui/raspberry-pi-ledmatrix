@@ -2,9 +2,9 @@
 #include <stdio.h>
 
 // Command codes
-#define HT1632C_CMD_MODE 0x04
-#define HT1632C_WRITE_MODE 0x05
-#define HT1632C_READ_MODE 0x06
+#define HT1632_MODE_CMD 0x04
+#define HT1632C_MODE_WRITE 0x05
+#define HT1632C_MODE_READ 0x06
 
 // Commands (used in CMD_MODE)
 #define HT1632C_CMD_SYS_DIS 0x00
@@ -45,6 +45,8 @@ void ht1632c_send_command(uint8_t command);
 void ht1632c_init();
 void ht1632c_write(uint8_t addr, uint8_t data);
 
+char A [8]= {0x18, 0x18, 0x24, 0x3C, 0x42, 0x42, 0x81, 0x81};
+
 
 int main(int argc, char **argv)
 {
@@ -67,17 +69,18 @@ int main(int argc, char **argv)
     }
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_65536); // The default
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_512);   // The default
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
 
     ht1632c_init();
     int t = 0;
 
-    for (int i = 0; i < 96; i++) {
-            ht1632c_write(i, 0x00);
+    for (int i = 0; i < 8; i++) {
+        ht1632c_write(i * 4, A[i] >> 4);
+        ht1632c_write(i * 4 + 1, A[i]);
     }
-   // ht1632c_write(0x23, 0x08);
+    ht1632c_write(95, 0x01);
 
     bcm2835_spi_end();
     bcm2835_close();
@@ -88,16 +91,15 @@ int main(int argc, char **argv)
 void ht1632c_init()
 {
   ht1632c_send_command(HT1632C_CMD_SYS_DIS);
+  ht1632c_send_command(HT1632C_CMD_COM_OPTION_NMOS_OPENDRAIN_16); // set 16x24 option
+  ht1632c_send_command(HT1632C_CMD_MASTER_MODE_RC);
   ht1632c_send_command(HT1632C_CMD_SYS_EN);
   ht1632c_send_command(HT1632C_CMD_LED_ON);
-  ht1632c_send_command(HT1632C_CMD_BLINK_OFF);
-  ht1632c_send_command(HT1632C_CMD_MASTER_MODE_RC);
-  ht1632c_send_command(HT1632C_CMD_PWM_DUTY_16_16);
 }
 
 void ht1632c_send_command(uint8_t command)
 {
-  uint16_t buf = (HT1632C_CMD_MODE << 13) | (command << 5); // concatenate mode and command bits and fill up to 16 bits with 0's
+  uint16_t buf = (HT1632_MODE_CMD << 13) | (command << 5); // concatenate mode and command bits and fill up to 16 bits with 0's
 
 #ifdef DEBUG
   print_bits(sizeof(buf), &buf);
@@ -112,7 +114,7 @@ void ht1632c_write(uint8_t addr, uint8_t data)
 {
   data = data & 0x0F;
   addr = addr & 0x7F;   // force first nibble low
-  uint16_t buf = (HT1632C_WRITE_MODE << 13) | (addr << 6);
+  uint16_t buf = (HT1632C_MODE_WRITE << 13) | (addr << 6);
   buf = buf | (data << 2);
 
 #ifdef DEBUG
